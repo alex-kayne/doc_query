@@ -1,0 +1,9 @@
+class IngestionMetricsService:
+    async def start_ingestion_metric(self):
+        ...
+
+    async def finish_ingestion_metric_success(self):
+        ...
+
+    async def finish_ingestion_metric_failed(self):
+        ...

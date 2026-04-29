@@ -8,7 +8,7 @@ from app.db.base import Base
 
 
 class IngestionMetric(Base):
-    __tablename__ = "ingest_metric"
+    __tablename__ = "ingestion_metric"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
