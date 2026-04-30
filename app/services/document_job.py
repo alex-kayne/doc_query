@@ -13,6 +13,6 @@ class DocumentJobService:
         async with async_session_maker() as session:
             async with session.begin():
                 document_id = await self.document_repository.create_document(session, payload)
-                job_id = await self.job_repository.create_job(session, document_id, payload.source_type)
+                job_id = await self.job_repository.create_job(session, document_id)
 
         return document_id, job_id
