@@ -20,8 +20,8 @@ class JobRepository:
         result = await async_session.execute(job)
         return result.fetchone()[0]
 
-    async def get_next_pending_job(self, async_session: AsyncSession) -> Job | None:
-        job = select(Job).where(Job.status == JobStatus.PENDING).order_by(asc(Job.created_at)).limit(1)
+    async def get_pending_job_by_id(self, async_session: AsyncSession, job_id: int) -> Job | None:
+        job = select(Job).where(Job.status == JobStatus.PENDING, Job.id == job_id).order_by(asc(Job.created_at)).limit(1)
         query_result = await async_session.execute(job)
         return query_result.scalar()
 

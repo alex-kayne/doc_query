@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 
 from app.api.routers import ALL_ROUTERS
+from app.lifespan import lifespan
 from app.settings import settings
 
-app = FastAPI(title=settings.app.name)
+app = FastAPI(title=settings.app.name, lifespan=lifespan)
 
 for router in ALL_ROUTERS:
     app.include_router(router)
