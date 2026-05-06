@@ -1,6 +1,7 @@
 from arq.connections import RedisSettings
 
 from app.repositories.document import DocumentRepository
+from app.repositories.document_content import DocumentContentRepository
 from app.repositories.ingestion_metrics import IngestionMetricsRepository
 from app.repositories.job import JobRepository
 from app.settings import settings
@@ -13,6 +14,7 @@ async def startup(ctx) -> None:
         job_repository=JobRepository(),
         document_repository=DocumentRepository(),
         ingestion_metrics_repository=IngestionMetricsRepository(),
+        document_content_repository=DocumentContentRepository(),
     )
     return None
 
