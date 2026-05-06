@@ -1,7 +1,7 @@
 from datetime import datetime, UTC
 from enum import Enum
 
-from sqlalchemy import ForeignKey, UniqueConstraint, Text, DateTime
+from sqlalchemy import ForeignKey, UniqueConstraint, Text, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -39,4 +39,21 @@ class DocumentContent(Base):
 
     __table_args__ = (
         UniqueConstraint("document_id", name="uq_document_content_document_id"),
+    )
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunk"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    content_id: Mapped[int] = mapped_column(ForeignKey("document_content.id"))
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    chunk_text: Mapped[str] = mapped_column(Text)
+    chunk_hash: Mapped[str] = mapped_column(Text)
+    token_count: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("content_id", "chunk_index", name="uq_document_chunk_content_id_chunk_index"),
     )
