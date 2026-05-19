@@ -2,21 +2,30 @@ from app.db.session import async_session_maker
 from app.models.document import DocumentStatus
 from app.models.job import Job
 from app.repositories.document import DocumentRepository
+from app.repositories.document_chunk import DocumentChunkRepository
 from app.repositories.document_content import DocumentContentRepository
 from app.repositories.ingestion_metrics import IngestionMetricsRepository
 from app.repositories.job import JobRepository
+from app.services.document_chunker import DocumentChunker
 from app.services.document_parser import DocumentParser
+from app.schemas.chunk import ChunkCreate
 
 
 class JobWorker:
 
-    def __init__(self, job_repository: JobRepository, document_repository: DocumentRepository,
+    def __init__(self,
+                 job_repository: JobRepository,
+                 document_repository: DocumentRepository,
                  ingestion_metrics_repository: IngestionMetricsRepository,
-                 document_content_repository: DocumentContentRepository):
+                 document_content_repository: DocumentContentRepository,
+                 document_chunker: DocumentChunker,
+                 document_chunk_repository: DocumentChunkRepository) -> None:
         self.job_repository = job_repository
         self.document_repository = document_repository
         self.ingestion_metrics_repository = ingestion_metrics_repository
         self.document_content_repository = document_content_repository
+        self.document_chunker = document_chunker
+        self.document_chunk_repository = document_chunk_repository
 
     async def _job_lookup(self, job_id: int) -> tuple[int, int] | None:
         async with async_session_maker() as session:
@@ -43,24 +52,31 @@ class JobWorker:
 
                 return None
 
-    async def _job_completed(self, job_id: int, document_id: int, metric_id: int) -> None:
+    async def _upsert_document_content(self, document_id: int,
+                                       normalized_text: str,
+                                       content_type: str,
+                                       content_hash: str) -> int:
         async with async_session_maker() as session:
             async with session.begin():
+                content_id = await self.document_content_repository.upsert_content(session, document_id,
+                                                                                   normalized_text,
+                                                                                   content_type,
+                                                                                   content_hash)
+        return content_id
+
+    async def _delete_content_upsert_chunks_job_completed(self, content_id: int,
+                                                          document_id: int,
+                                                          chunks: list[ChunkCreate],
+                                                          job_id: int,
+                                                          metric_id: int) -> None:
+        async with async_session_maker() as session:
+            async with session.begin():
+                await self.document_chunk_repository.delete_by_content_id(session, content_id)
+                await self.document_chunk_repository.bulk_insert_chunks(session, document_id, content_id, chunks)
                 await self.document_repository.update_status(session, document_id, DocumentStatus.READY)
                 await self.job_repository.mark_completed_by(session, job_id)
                 await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
 
-                return None
-
-    async def _upsert_document_content(self, document_id: int,
-                                   normalized_text: str,
-                                   content_type: str,
-                                   content_hash: str) -> None:
-        async with async_session_maker() as session:
-            async with session.begin():
-                await self.document_content_repository.upsert_content(session, document_id, normalized_text,
-                                                                      content_type,
-                                                                      content_hash)
         return None
 
     async def process_job(self, job_id: int) -> str:
@@ -74,11 +90,12 @@ class JobWorker:
 
         try:
             normalized_text, text_hash = DocumentParser.parse("dummy", "docx")
-            await self._upsert_document_content(document_id, normalized_text, "docx", text_hash)
+            content_id = await self._upsert_document_content(document_id, normalized_text, "docx", text_hash)
+            chunks = self.document_chunker.chunk(normalized_text)
+            await self._delete_content_upsert_chunks_job_completed(content_id, document_id, chunks, job_id, metric_id)
         except Exception as e:
             error_message = e.__str__()
             await self._job_failed(job_id, document_id, metric_id, error_message)
             return error_message
 
-        await self._job_completed(job_id, document_id, metric_id)
         return f"{job_id=} успешно обработано"

@@ -10,13 +10,15 @@ class DocumentContentRepository:
                              document_id: int,
                              normalized_text: str,
                              content_type: str,
-                             content_hash: str) -> None:
+                             content_hash: str) -> int:
         document_content = insert(DocumentContent).values(document_id=document_id,
                                                           normalized_text=normalized_text,
                                                           content_type=content_type,
                                                           content_hash=content_hash).on_conflict_do_update(
-            constraint="document_content_document_id_key", set_=dict(normalized_text=normalized_text,
+            constraint="uq_document_content_document_id", set_=dict(normalized_text=normalized_text,
                                                                      content_type=content_type,
-                                                                     content_hash=content_hash))
+                                                                     content_hash=content_hash)).returning(
+            DocumentContent.id)
 
-        await async_session.execute(document_content)
+        result = await async_session.execute(document_content)
+        return result.fetchone()[0]

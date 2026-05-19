@@ -1,11 +1,13 @@
 from arq.connections import RedisSettings
 
 from app.repositories.document import DocumentRepository
+from app.repositories.document_chunk import DocumentChunkRepository
 from app.repositories.document_content import DocumentContentRepository
 from app.repositories.ingestion_metrics import IngestionMetricsRepository
 from app.repositories.job import JobRepository
-from app.settings import settings
+from app.services.document_chunker import DocumentChunker
 from app.services.job_worker import JobWorker
+from app.settings import settings
 from app.workers.arq_tasks import process_document_job
 
 
@@ -15,6 +17,8 @@ async def startup(ctx) -> None:
         document_repository=DocumentRepository(),
         ingestion_metrics_repository=IngestionMetricsRepository(),
         document_content_repository=DocumentContentRepository(),
+        document_chunker=DocumentChunker(),
+        document_chunk_repository=DocumentChunkRepository()
     )
     return None
 
