@@ -36,12 +36,16 @@ class JobWorker:
                 else:
                     return None
 
-    async def _job_processing(self, job_id: int, document_id: int) -> int:
+    async def _job_processing(self, job_id: int) -> tuple[int, int] | None:
         async with async_session_maker() as session:
             async with session.begin():
-                await self.document_repository.update_status(session, document_id, DocumentStatus.PROCESSING)
-                await self.job_repository.mark_processing_by(session, job_id)
-                return await self.ingestion_metrics_repository.start_metric(session, job_id, document_id, "ingestion")
+                if job := await self.job_repository.get_pending_job_by_id(session, job_id, need_to_lock=True):
+                    document_id = job.document_id
+                    await self.document_repository.update_status(session, document_id, DocumentStatus.PROCESSING)
+                    await self.job_repository.mark_processing_by(session, job_id)
+                    return await self.ingestion_metrics_repository.start_metric(session, job_id, document_id,
+                                                                                "ingestion"), document_id
+                return None
 
     async def _job_failed(self, job_id: int, document_id: int, metric_id: int, error_message: str) -> None:
         async with async_session_maker() as session:
@@ -75,10 +79,9 @@ class JobWorker:
         if not (job_ref := await self._job_lookup(job_id)):
             return f"{job_id=} отсутствует или находится не в статусе ожидание"
 
-        job_id: int = job_ref[0]
         document_id: int = job_ref[1]
 
-        metric_id = await self._job_processing(job_id, document_id)
+        metric_id, document_id = await self._job_processing(job_id)
 
         try:
             normalized_text, text_hash = DocumentParser.parse("dummy", "docx")
