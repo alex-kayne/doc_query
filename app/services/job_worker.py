@@ -6,9 +6,9 @@ from app.repositories.document_chunk import DocumentChunkRepository
 from app.repositories.document_content import DocumentContentRepository
 from app.repositories.ingestion_metrics import IngestionMetricsRepository
 from app.repositories.job import JobRepository
+from app.schemas.chunk import ChunkCreate
 from app.services.document_chunker import DocumentChunker
 from app.services.document_parser import DocumentParser
-from app.schemas.chunk import ChunkCreate
 
 
 class JobWorker:
@@ -55,14 +55,21 @@ class JobWorker:
     async def _upsert_document_content(self, document_id: int,
                                        normalized_text: str,
                                        content_type: str,
-                                       content_hash: str) -> int:
+                                       content_hash: str,
+                                       metric_id: int,
+                                       job_id: int) -> None:
         async with async_session_maker() as session:
             async with session.begin():
                 content_id = await self.document_content_repository.upsert_content(session, document_id,
                                                                                    normalized_text,
                                                                                    content_type,
                                                                                    content_hash)
-        return content_id
+                chunks = self.document_chunker.chunk(normalized_text)
+                await self.document_chunk_repository.delete_by_content_id(session, content_id)
+                await self.document_chunk_repository.bulk_insert_chunks(session, document_id, content_id, chunks)
+                await self.document_repository.update_status(session, document_id, DocumentStatus.READY)
+                await self.job_repository.mark_completed_by(session, job_id)
+                await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
 
     async def _delete_content_upsert_chunks_job_completed(self, content_id: int,
                                                           document_id: int,
@@ -90,9 +97,7 @@ class JobWorker:
 
         try:
             normalized_text, text_hash = DocumentParser.parse("dummy", "docx")
-            content_id = await self._upsert_document_content(document_id, normalized_text, "docx", text_hash)
-            chunks = self.document_chunker.chunk(normalized_text)
-            await self._delete_content_upsert_chunks_job_completed(content_id, document_id, chunks, job_id, metric_id)
+            await self._upsert_document_content(document_id, normalized_text, "docx", text_hash, metric_id, job_id)
         except Exception as e:
             error_message = e.__str__()
             await self._job_failed(job_id, document_id, metric_id, error_message)
