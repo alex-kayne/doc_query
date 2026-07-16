@@ -27,15 +27,6 @@ class JobWorker:
         self.document_chunker = document_chunker
         self.document_chunk_repository = document_chunk_repository
 
-    async def _job_lookup(self, job_id: int) -> tuple[int, int] | None:
-        async with async_session_maker() as session:
-            async with session.begin():
-                job: Job | None = await self.job_repository.get_pending_job_by_id(session, job_id)
-                if job:
-                    return job.id, job.document_id
-                else:
-                    return None
-
     async def _job_processing(self, job_id: int) -> tuple[int, int] | None:
         async with async_session_maker() as session:
             async with session.begin():
