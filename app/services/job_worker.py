@@ -45,6 +45,7 @@ class JobWorker:
                     await self.job_repository.mark_processing_by(session, job_id)
                     return await self.ingestion_metrics_repository.start_metric(session, job_id, document_id,
                                                                                 "ingestion"), document_id
+
                 return None
 
     async def _job_failed(self, job_id: int, document_id: int, metric_id: int, error_message: str) -> None:
@@ -76,12 +77,12 @@ class JobWorker:
                 await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
 
     async def process_job(self, job_id: int) -> str:
-        if not (job_ref := await self._job_lookup(job_id)):
-            return f"{job_id=} отсутствует или находится не в статусе ожидание"
+        process_res =  await self._job_processing(job_id)
 
-        document_id: int = job_ref[1]
+        if process_res is None:
+            return f"{job_id=} отсутствует или находится не в статусе ожидание или уже выполняется"
 
-        metric_id, document_id = await self._job_processing(job_id)
+        metric_id, document_id = process_res
 
         try:
             normalized_text, text_hash = DocumentParser.parse("dummy", "docx")
