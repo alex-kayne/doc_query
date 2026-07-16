@@ -52,12 +52,12 @@ class JobWorker:
 
                 return None
 
-    async def _upsert_document_content(self, document_id: int,
-                                       normalized_text: str,
-                                       content_type: str,
-                                       content_hash: str,
-                                       metric_id: int,
-                                       job_id: int) -> None:
+    async def _process_document(self, document_id: int,
+                                normalized_text: str,
+                                content_type: str,
+                                content_hash: str,
+                                metric_id: int,
+                                job_id: int) -> None:
         async with async_session_maker() as session:
             async with session.begin():
                 content_id = await self.document_content_repository.upsert_content(session, document_id,
@@ -71,21 +71,6 @@ class JobWorker:
                 await self.job_repository.mark_completed_by(session, job_id)
                 await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
 
-    async def _delete_content_upsert_chunks_job_completed(self, content_id: int,
-                                                          document_id: int,
-                                                          chunks: list[ChunkCreate],
-                                                          job_id: int,
-                                                          metric_id: int) -> None:
-        async with async_session_maker() as session:
-            async with session.begin():
-                await self.document_chunk_repository.delete_by_content_id(session, content_id)
-                await self.document_chunk_repository.bulk_insert_chunks(session, document_id, content_id, chunks)
-                await self.document_repository.update_status(session, document_id, DocumentStatus.READY)
-                await self.job_repository.mark_completed_by(session, job_id)
-                await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
-
-        return None
-
     async def process_job(self, job_id: int) -> str:
         if not (job_ref := await self._job_lookup(job_id)):
             return f"{job_id=} отсутствует или находится не в статусе ожидание"
@@ -97,7 +82,7 @@ class JobWorker:
 
         try:
             normalized_text, text_hash = DocumentParser.parse("dummy", "docx")
-            await self._upsert_document_content(document_id, normalized_text, "docx", text_hash, metric_id, job_id)
+            await self._process_document(document_id, normalized_text, "docx", text_hash, metric_id, job_id)
         except Exception as e:
             error_message = e.__str__()
             await self._job_failed(job_id, document_id, metric_id, error_message)
