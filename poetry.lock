@@ -642,6 +642,18 @@ files = [
 ]
 
 [[package]]
+name = "pgvector"
+version = "0.5.0"
+description = "pgvector support for Python"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "pgvector-0.5.0-py3-none-any.whl", hash = "sha256:fedc9800894e6da2be51358d7b7c574bf34f247ca741a5a09513622135f5964f"},
+    {file = "pgvector-0.5.0.tar.gz", hash = "sha256:07a9dcf735696879406983afc6eba9a787cef7c0cf6c367ca1a5779f036dee74"},
+]
+
+[[package]]
 name = "pluggy"
 version = "1.6.0"
 description = "plugin and hook calling mechanisms for python"
@@ -1281,4 +1293,4 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "ae3358ff59033930bf057f90d43ea2769b14b224c7d9f43fc9729f6dd68c89da"
+content-hash = "a9e9afc5d74fafd1f121e16619408797e5f90d655b2c62b82ad4e5fa40846f75"

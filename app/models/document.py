@@ -6,6 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
+from pgvector.sqlalchemy import Vector
+
 
 class DocumentStatus(str, Enum):
     UPLOADED = "uploaded"
@@ -26,6 +28,7 @@ class Document(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
+
 class DocumentContent(Base):
     __tablename__ = "document_content"
 
@@ -41,6 +44,7 @@ class DocumentContent(Base):
         UniqueConstraint("document_id", name="uq_document_content_document_id"),
     )
 
+
 class DocumentChunk(Base):
     __tablename__ = "document_chunk"
 
@@ -53,6 +57,7 @@ class DocumentChunk(Base):
     token_count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("content_id", "chunk_index", name="uq_document_chunk_content_id_chunk_index"),
