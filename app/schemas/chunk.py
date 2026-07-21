@@ -6,3 +6,4 @@ class ChunkCreate(BaseModel):
     chunk_text: str
     chunk_hash: str
     token_count: int
+    embedding: list[list[float]]
