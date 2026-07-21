@@ -3,9 +3,8 @@ from collections import deque
 from copy import copy
 from hashlib import sha256
 from typing import Generator
-from app.services.embedding_provider import FakeEmbeddingProvider
+
 from app.schemas.chunk import ChunkCreate
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 
 class DocumentChunker:
@@ -21,13 +20,9 @@ class DocumentChunker:
             if sentence:
                 yield sentence, sentence.count(" ") + 1
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        reraise=True,
-    )
-    async def _create_chunks(self, chunk_size: int, chunk_inx: int, sentence_list: list[str],
-                             overlap_to_add: deque | None) -> ChunkCreate:
+
+    def _create_chunks(self, chunk_size: int, chunk_inx: int, sentence_list: list[str],
+                       overlap_to_add: deque | None) -> ChunkCreate:
         if chunk_inx != 1:
             text = " ".join(sentence_list)
             for seq, seq_len in reversed(overlap_to_add or []):
@@ -36,15 +31,12 @@ class DocumentChunker:
         else:
             text = " ".join(sentence_list)
 
-        embedding = await FakeEmbeddingProvider.embed(sentence_list)
-
         return ChunkCreate(chunk_index=chunk_inx,
                            chunk_text=text,
                            chunk_hash=sha256(text.encode()).hexdigest(),
-                           token_count=chunk_size,
-                           embedding=embedding)
+                           token_count=chunk_size)
 
-    async def chunk(self, normalized_text: str) -> list[ChunkCreate]:
+    def chunk(self, normalized_text: str) -> list[ChunkCreate]:
         chunks = []
         chunk_index = 1
         sentence_list = []
@@ -65,14 +57,13 @@ class DocumentChunker:
             overlap_queue.append((sentence, sentence_len,))
 
             if chunk_size > self.chunk_size:
-                chunks.append(
-                    await self._create_chunks(chunk_size, chunk_index, sentence_list, overlap_to_add))
+                chunks.append(self._create_chunks(chunk_size, chunk_index, sentence_list, overlap_to_add))
                 chunk_index += 1
                 chunk_size = 0
                 sentence_list = []
                 overlap_to_add = copy(overlap_queue)
 
         if sentence_list:
-            chunks.append(await self._create_chunks(chunk_size, chunk_index, sentence_list, overlap_to_add))
+            chunks.append(self._create_chunks(chunk_size, chunk_index, sentence_list, overlap_to_add))
 
         return chunks

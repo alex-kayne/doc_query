@@ -1,14 +1,13 @@
 from app.db.session import async_session_maker
 from app.models.document import DocumentStatus
-from app.models.job import Job
 from app.repositories.document import DocumentRepository
 from app.repositories.document_chunk import DocumentChunkRepository
 from app.repositories.document_content import DocumentContentRepository
 from app.repositories.ingestion_metrics import IngestionMetricsRepository
 from app.repositories.job import JobRepository
-from app.schemas.chunk import ChunkCreate
 from app.services.document_chunker import DocumentChunker
 from app.services.document_parser import DocumentParser
+from app.services.embedding_provider import FakeEmbeddingProvider
 
 
 class JobWorker:
@@ -54,13 +53,17 @@ class JobWorker:
                                 content_hash: str,
                                 metric_id: int,
                                 job_id: int) -> None:
+        chunks = self.document_chunker.chunk(normalized_text)
+
+        for chunk in chunks:
+            chunk.embedding = await FakeEmbeddingProvider.embed(chunk.chunk_text)
+
         async with async_session_maker() as session:
             async with session.begin():
                 content_id = await self.document_content_repository.upsert_content(session, document_id,
                                                                                    normalized_text,
                                                                                    content_type,
                                                                                    content_hash)
-                chunks = self.document_chunker.chunk(normalized_text)
                 await self.document_chunk_repository.delete_by_content_id(session, content_id)
                 await self.document_chunk_repository.bulk_insert_chunks(session, document_id, content_id, chunks)
                 await self.document_repository.update_status(session, document_id, DocumentStatus.READY)
@@ -68,7 +71,7 @@ class JobWorker:
                 await self.ingestion_metrics_repository.finish_success(session, metric_id, "ingestion")
 
     async def process_job(self, job_id: int) -> str:
-        process_res =  await self._job_processing(job_id)
+        process_res = await self._job_processing(job_id)
 
         if process_res is None:
             return f"{job_id=} отсутствует или находится не в статусе ожидание или уже выполняется"

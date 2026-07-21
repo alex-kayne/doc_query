@@ -1,6 +1,7 @@
+import hashlib
 from typing import Protocol
 
-import hashlib
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 
 class EmbeddingProvider(Protocol):
@@ -10,12 +11,18 @@ class EmbeddingProvider(Protocol):
 
 
 class FakeEmbeddingProvider:
+
     @staticmethod
-    async def embed(texts: list[str]) -> list[list[float]]:
-        return [[ord(char) * 1.13 for char in hashlib.sha256(string.encode("utf-8")).hexdigest()] for string in texts]
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        reraise=True,
+    )
+    async def embed(text: str) -> list[float]:
+        return [char * 1.13 for char in hashlib.sha256(text.encode("utf-8")).digest()]
 
 
 if __name__ == '__main__':
     import asyncio
 
-    print(asyncio.run(FakeEmbeddingProvider().embed(["foo", "bar"])))
+    print(len(asyncio.run(FakeEmbeddingProvider().embed("foo"))))

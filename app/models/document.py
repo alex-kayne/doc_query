@@ -57,7 +57,7 @@ class DocumentChunk(Base):
     token_count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(32), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("content_id", "chunk_index", name="uq_document_chunk_content_id_chunk_index"),
