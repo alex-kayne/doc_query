@@ -55,8 +55,8 @@ class JobWorker:
                                 job_id: int) -> None:
         chunks = self.document_chunker.chunk(normalized_text)
 
-        for chunk in chunks:
-            chunk.embedding = await FakeEmbeddingProvider.embed(chunk.chunk_text)
+        for inx, embedding in enumerate(await FakeEmbeddingProvider.embed([chunk.chunk_text for chunk in chunks])):
+            chunks[inx].embedding = embedding
 
         async with async_session_maker() as session:
             async with session.begin():

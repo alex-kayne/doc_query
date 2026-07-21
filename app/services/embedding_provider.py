@@ -18,11 +18,11 @@ class FakeEmbeddingProvider:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
     )
-    async def embed(text: str) -> list[float]:
-        return [char * 1.13 for char in hashlib.sha256(text.encode("utf-8")).digest()]
+    async def embed(text: list[str]) -> list[list[float]]:
+        return [[char * 1.13 for char in hashlib.sha256(chunk_text.encode("utf-8")).digest()] for chunk_text in text]
 
 
 if __name__ == '__main__':
     import asyncio
 
-    print(len(asyncio.run(FakeEmbeddingProvider().embed("foo"))))
+    print(asyncio.run(FakeEmbeddingProvider().embed(["foo", "bar",])))
