@@ -26,6 +26,7 @@ class DocumentChunkRepository:
             "token_count": chunk.token_count,
             "created_at": dt_now,
             "updated_at": dt_now,
+            "embedding": chunk.embedding,
         } for chunk in chunks]
         await session.execute(insert(DocumentChunk), payload)
         return None
