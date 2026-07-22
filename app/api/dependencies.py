@@ -1,7 +1,9 @@
 from app.clients.arq import ArqClient
+from app.repositories.chunk import ChunkRepository
 from app.repositories.dataset import DatasetRepository
 from app.repositories.document import DocumentRepository
 from app.repositories.job import JobRepository
+from app.services.chunk import ChunkService
 from app.services.dataset import DatasetService
 from app.services.document_job import DocumentJobService
 
@@ -12,3 +14,7 @@ def get_document_job_service() -> DocumentJobService:
 
 def get_dataset_service() -> DatasetService:
     return DatasetService(DatasetRepository())
+
+
+def get_chunk_service() -> ChunkService:
+    return ChunkService(ChunkRepository())

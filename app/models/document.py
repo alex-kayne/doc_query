@@ -1,12 +1,11 @@
 from datetime import datetime, UTC
 from enum import Enum
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, UniqueConstraint, Text, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-
-from pgvector.sqlalchemy import Vector
 
 
 class DocumentStatus(str, Enum):
